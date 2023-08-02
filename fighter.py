@@ -167,6 +167,8 @@ class Fighter():
         self.hp=self.max_hp
         self.potions=self.start_potions
 
+        self.status_effect = []
+
         self.frame_index=0
         self.action=0
         self.update_time = pygame.time.get_ticks()

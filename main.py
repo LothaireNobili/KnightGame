@@ -20,7 +20,7 @@ pygame.display.set_caption('Battle')
 
 #define game rules and variable
 current_fighter = 1
-bandit_count = 1
+bandit_count = 3
 total_fighter = bandit_count + 1 #amount of bandit + the player
 action_cooldown = 0
 action_wait_time = 40
@@ -108,7 +108,7 @@ character_list.append(knight)
 
 for i in range(bandit_count):
     bandit_list.append(Fighter(350 + i*(80+ennemy_spread) + (character_shift),
-                                270, "Bandit", "Bandit "+str(i+1), 200, 6, 1))
+                                270, "Bandit", "Bandit "+str(i+1), 20, 6, 1))
     character_list.append(bandit_list[i])
     bandits_healthbars.append(HealthBar(550, start_bottom_panel + 40, bandit_list[i]))
 
@@ -216,7 +216,6 @@ while run:
                 if bandit.alive:    
                     action_cooldown += 1
                     if action_cooldown >= action_wait_time:
-                        print('poke')
                         bandit.status_effect_start_turn(damage_text_group)
                         if bandit.alive:  #we must check if the target is still alive after the damage of the effects
                             #check if needs to heal
