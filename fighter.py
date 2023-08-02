@@ -3,20 +3,25 @@ import random
 from HUD.damagetext import DamageText
 
 red = (255, 0, 0)
+orange = (255, 87, 51)
 green = (0, 255, 0)
 
 class Fighter():
 
-    def __init__(self, x, y, name, max_hp, strength, potions):
+    def __init__(self, x, y, name, display_name, max_hp, strength, potions):
 
         #fighting stats
         self.name = name
+        self.display_name = display_name
         self.max_hp = max_hp
         self.hp = max_hp
         self.strength = strength
         self.start_potions = potions 
         self.potions = potions
         self.alive = True
+
+        #status effect stuff
+        self.status_effect = []  #exemple : [["poison",3],["bleeding",2]]  => poisonned for 3 turns, bleeding for 2 turns
 
         #animation values
         self.scale = 3
@@ -64,8 +69,13 @@ class Fighter():
     def attack(self, target, damage_text_group):
         if target.alive:  #to prevent IA attack dead, might softlock the game later
             #deal damage to ennemy
+            
             mod = random.randint(-5, 5)
             damage = self.strength + mod
+
+            if self.check_status_effect("poison"): #weakening the attack if poisoned
+                damage = damage//2
+
             target.hp -= damage
             #run ennemy hurt animation
             target.hurt()
@@ -94,17 +104,63 @@ class Fighter():
         self.update_time = pygame.time.get_ticks()
     
     def heal(self, amount, damage_text_group):
+        
+        heal_amount = amount
+        if self.check_status_effect("poison"):
+            heal_amount = heal_amount//2
+
+
         #check if potion would overheal
-        if self.max_hp - self.hp > amount:
-            heal_amount = amount
+        if self.max_hp - self.hp > heal_amount:
+            heal_amount = heal_amount
         else:
             heal_amount = self.max_hp-self.hp
 
-        heal_text = DamageText(self.rect.centerx, self.rect.y, str(amount), green)
+        heal_text = DamageText(self.rect.centerx, self.rect.y, str(heal_amount), green)
         damage_text_group.add(heal_text)  
 
         self.hp += heal_amount
         self.potions-=1
+
+    def status_effect_start_turn(self, damage_text_group):
+        if self.check_status_effect("poison"):
+            poison = self.status_effect_tick("poison")
+
+            poison_damage = 3+poison
+            self.hp -= poison_damage
+
+            poison_text = DamageText(self.rect.centerx, self.rect.y, str(poison_damage), orange)
+            damage_text_group.add(poison_text)  
+
+            if self.hp <= 0:
+                self.hp = 0
+                self.alive = False
+                self.death()
+
+    def check_status_effect(self, effect_name):
+        for status_effect in self.status_effect:
+            if status_effect[0] == effect_name:
+                return status_effect[1]
+        return 0 
+
+    def status_effect_tick(self, effect_name):
+        for status_effect in self.status_effect:
+            if status_effect[0] == effect_name:
+                status_effect[1] -= 1  #remove a stack
+                return status_effect[1]+1 #we return how much there was before removing to apply effect properly
+   
+   
+    def apply_status_effect(self, effect_name, duration):
+        # Check if the status effect is already in the list
+            for status_effect in self.status_effect:
+                if status_effect[0] == effect_name:
+                    # If the effect is found, update its stack
+                    status_effect[1] += duration
+                    return
+
+            # If the effect is not found, add it as a new entry in the list
+            self.status_effect.append([effect_name, duration])
+
 
     def reset(self):
         self.alive = True
@@ -118,3 +174,42 @@ class Fighter():
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
+
+
+
+
+class Knight(Fighter):
+
+    def __init__(self, x, y, name, display_name, max_hp, strength, potions, start_poison_potions):
+        super().__init__(x, y, name, display_name, max_hp, strength, potions)
+        self.start_poison_potions = start_poison_potions
+        self.poison_potions = start_poison_potions
+        self.poison_active = False
+    
+    def poison_attack(self, target, damage_text_group):
+        if target.alive:  #to prevent IA attack dead, might softlock the game later
+            #deal damage to ennemy
+            mod = random.randint(-3, 8)
+            damage = self.strength + mod
+            target.hp -= damage
+            target.apply_status_effect("poison", 3)  ###fix that
+            #run ennemy hurt animation
+            target.hurt()
+            self.poison_active=False
+            #check if target died
+            if target.hp <= 0:
+                target.hp = 0
+                target.alive = False
+                target.death()
+
+            damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), orange)
+            damage_text_group.add(damage_text)
+
+            #set animation to attack
+            self.action = 1
+            self.frame_index = 0
+            self.update_time = pygame.time.get_ticks()
+        
+    def reset(self):
+        super().reset()
+        self.poison_potions=self.start_potions
