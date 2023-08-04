@@ -206,21 +206,28 @@ while run:
             if gamerule.current_fighter == 2 + count:
                 if bandit.alive :    
                     bandit.action_cooldown += 1
+                    
                     if bandit.action_cooldown >= gamerule.action_wait_time :
-                        
-                        bandit.status_effect_start_turn(damage_text_group)
-                        if bandit.alive:  # must check if the target is still alive after the damage of the effects
-                            #check if needs to heal
-                            if (bandit.hp/bandit.max_hp) < 0.5 and bandit.heal_potions > 0 :
-                                #check if heal_potion would overheal
-                                bandit.heal(gamerule.heal_potion_effect, damage_text_group)
-                                gamerule.current_fighter+=1
-                                bandit.action_cooldown = 0
-                            else:
-                                #attack
-                                bandit.attack(knight, damage_text_group)
-                                gamerule.current_fighter+=1                                
-                                bandit.action_cooldown = 0
+                            
+                            if bandit.turn_state[0]==0:  #verification des effets de status de début de tour
+                                bandit.status_effect_start_turn(damage_text_group)
+                                #bandit.action_cooldown = 0
+                                #bandit.turn_state[0]=1
+
+                            
+                            elif bandit.turn_state[0]==1:  #action du voleur
+                               
+                                if (bandit.hp/bandit.max_hp) < 0.5 and bandit.heal_potions > 0 :
+                                    #check if heal_potion would overheal
+                                    bandit.heal(gamerule.heal_potion_effect, damage_text_group)
+                                    gamerule.current_fighter+=1
+                                    bandit.action_cooldown = 0
+                                else:
+                                    #attack
+                                    bandit.attack(knight, damage_text_group)
+                                    gamerule.current_fighter+=1                                
+                                    bandit.action_cooldown = 0
+                                bandit.turn_state[0]=0
                 else:
                     gamerule.current_fighter += 1
 

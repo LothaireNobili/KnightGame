@@ -23,6 +23,7 @@ class Fighter():
         #status effect stuff
         self.status_effect = []  #exemple : [["poison",3],["bleeding",2]]  => poisonned for 3 turns, bleeding for 2 turns
         
+        self.turn_state = [0, 0]
 
         #animation values
         self.action_cooldown = 0
@@ -80,7 +81,6 @@ class Fighter():
                 damage = damage//2
 
             target.take_damage(damage, damage_text_group)
-
             #damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), red)
             #damage_text_group.add(damage_text)
 
@@ -140,15 +140,25 @@ class Fighter():
         self.heal_potions-=1
 
     def status_effect_start_turn(self, damage_text_group):
-        if self.check_status_effect("poison"):
-            poison = self.status_effect_tick("poison")
 
-            poison_damage = 3+poison
+        if self.turn_state[1] == 0 :
+            if self.check_status_effect("poison"):
+                poison = self.status_effect_tick("poison")
+                poison_damage = 3+poison
+                self.take_damage(poison_damage, damage_text_group, damage_type = "poison")
+            self.turn_state[1]=1
 
-            self.take_damage(poison_damage, damage_text_group, damage_type = "poison")
+        elif self.turn_state[1] == 1:
+            if self.check_status_effect("bleed"):
+                bleed = self.status_effect_tick("bleed")
+                bleed_damage = 5
+                self.take_damage(bleed_damage, damage_text_group, damage_type = "poison")
+            self.turn_state[1]=2 #2 doesn't exist yet but it allows to break the loop
+            
+        else:
+            self.turn_state[1]=0 #close the loop
+            self.turn_state[0]=1
 
-            #poison_text = DamageText(self.rect.centerx, self.rect.y, str(poison_damage), orange)
-            #damage_text_group.add(poison_text)  
 
 
     def check_status_effect(self, effect_name):
@@ -208,7 +218,7 @@ class Knight(Fighter):
             mod = random.randint(-3, 8)
             damage = self.strength + mod
             target.hp -= damage
-            target.apply_status_effect("poison", 3)  ###fix that
+            target.apply_status_effect("poison", 3) 
             #run ennemy hurt animation
             target.hurt()
             self.poison_active=False
