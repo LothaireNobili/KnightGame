@@ -3,12 +3,12 @@ import random
 from HUD.damagetext import DamageText
 
 red = (255, 0, 0)
-orange = (255, 87, 51)
+orange = (255, 75, 0)
 green = (0, 255, 0)
 
 class Fighter():
 
-    def __init__(self, x, y, name, display_name, max_hp, strength, potions):
+    def __init__(self, x, y, name, display_name, max_hp, strength, heal_potions):
 
         #fighting stats
         self.name = name
@@ -16,19 +16,22 @@ class Fighter():
         self.max_hp = max_hp
         self.hp = max_hp
         self.strength = strength
-        self.start_potions = potions 
-        self.potions = potions
+        self.start_heal_potions = heal_potions 
+        self.heal_potions = heal_potions
         self.alive = True
 
         #status effect stuff
         self.status_effect = []  #exemple : [["poison",3],["bleeding",2]]  => poisonned for 3 turns, bleeding for 2 turns
+        
 
         #animation values
+        self.action_cooldown = 0
         self.scale = 3
         self.animation_list = []
         self.frame_index = 0
         self.action = 0 # 0:idle; 1:attack; 2:hurt; 3:death
         self.update_time = pygame.time.get_ticks()
+        self.current_status_effect = 0 #to make sure the status effect ticks one by one
 
         #load idle/attack images
         action_images = [["Idle",8], ["Attack",8],["Hurt",3],["Death",10]] #[element],[number of sprite] (must be standardiezed for all ennemies rn)
@@ -76,17 +79,10 @@ class Fighter():
             if self.check_status_effect("poison"): #weakening the attack if poisoned
                 damage = damage//2
 
-            target.hp -= damage
-            #run ennemy hurt animation
-            target.hurt()
-            #check if target died
-            if target.hp <= 0:
-                target.hp = 0
-                target.alive = False
-                target.death()
+            target.take_damage(damage, damage_text_group)
 
-            damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), red)
-            damage_text_group.add(damage_text)
+            #damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), red)
+            #damage_text_group.add(damage_text)
 
             #set animation to attack
             self.action = 1
@@ -94,6 +90,7 @@ class Fighter():
             self.update_time = pygame.time.get_ticks()
 
     def hurt(self):
+        self.action_cooldown = 0
         self.action = 2
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
@@ -103,6 +100,26 @@ class Fighter():
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
     
+    def take_damage(self, amount, damage_text_group, damage_type = "normal"):
+        self.hp -= amount
+        #run ennemy hurt animation
+        self.hurt()
+        #check if target died
+        if self.hp <= 0:
+            self.hp = 0
+            self.alive = False
+            self.death()
+
+        damage_color = red
+        if damage_type == "normal":
+            damage_color = red
+        elif damage_type == "poison":
+            damage_color = orange
+
+
+        damage_text = DamageText(self.rect.centerx, self.rect.y, str(amount), damage_color)
+        damage_text_group.add(damage_text)
+    
     def heal(self, amount, damage_text_group):
         
         heal_amount = amount
@@ -110,7 +127,7 @@ class Fighter():
             heal_amount = heal_amount//2
 
 
-        #check if potion would overheal
+        #check if heal_potion would overheal
         if self.max_hp - self.hp > heal_amount:
             heal_amount = heal_amount
         else:
@@ -120,22 +137,19 @@ class Fighter():
         damage_text_group.add(heal_text)  
 
         self.hp += heal_amount
-        self.potions-=1
+        self.heal_potions-=1
 
     def status_effect_start_turn(self, damage_text_group):
         if self.check_status_effect("poison"):
             poison = self.status_effect_tick("poison")
 
             poison_damage = 3+poison
-            self.hp -= poison_damage
 
-            poison_text = DamageText(self.rect.centerx, self.rect.y, str(poison_damage), orange)
-            damage_text_group.add(poison_text)  
+            self.take_damage(poison_damage, damage_text_group, damage_type = "poison")
 
-            if self.hp <= 0:
-                self.hp = 0
-                self.alive = False
-                self.death()
+            #poison_text = DamageText(self.rect.centerx, self.rect.y, str(poison_damage), orange)
+            #damage_text_group.add(poison_text)  
+
 
     def check_status_effect(self, effect_name):
         for status_effect in self.status_effect:
@@ -165,7 +179,7 @@ class Fighter():
     def reset(self):
         self.alive = True
         self.hp=self.max_hp
-        self.potions=self.start_potions
+        self.heal_potions=self.start_heal_potions
 
         self.status_effect = []
 
@@ -182,10 +196,10 @@ class Fighter():
 
 class Knight(Fighter):
 
-    def __init__(self, x, y, name, display_name, max_hp, strength, potions, start_poison_potions):
-        super().__init__(x, y, name, display_name, max_hp, strength, potions)
-        self.start_poison_potions = start_poison_potions
-        self.poison_potions = start_poison_potions
+    def __init__(self, x, y, name, display_name, max_hp, strength, heal_potions, poison_potions):
+        super().__init__(x, y, name, display_name, max_hp, strength, heal_potions)
+        self.start_poison_potions = poison_potions
+        self.poison_potions = poison_potions
         self.poison_active = False
     
     def poison_attack(self, target, damage_text_group):
@@ -214,4 +228,4 @@ class Knight(Fighter):
         
     def reset(self):
         super().reset()
-        self.poison_potions=self.start_potions
+        self.poison_potions=self.start_poison_potions

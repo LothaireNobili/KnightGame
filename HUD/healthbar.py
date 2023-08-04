@@ -9,13 +9,9 @@ class HealthBar():
         self.x = x
         self.y = y
         self.owner = owner
-        #self.hp = hp
-        #self.max_hp = max_hp
     
     def draw(self, screen):
         
-
-
         #update with new health
         #calculate the ration
         ratio = self.owner.hp / self.owner.max_hp

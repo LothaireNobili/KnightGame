@@ -3,6 +3,7 @@ from fighter import Fighter, Knight
 from HUD.healthbar import HealthBar
 from HUD.button import Button
 from HUD.damagetext import DamageText
+from gamerule import Gamerules
 
 pygame.init()
 
@@ -18,22 +19,16 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Battle')
 
 
-#define game rules and variable
-current_fighter = 1
-bandit_count = 3
-total_fighter = bandit_count + 1 #amount of bandit + the player
-action_cooldown = 0
-action_wait_time = 40
-potion_effect = 15
+gamerule = Gamerules()
 
 #define convenient graphical values
-character_shift = 200/2**bandit_count - (bandit_count//5)*70
-ennemy_spread = 90/2**bandit_count
+character_shift = 200/2**gamerule.bandit_count - (gamerule.bandit_count//5)*70
+ennemy_spread = 90/2**gamerule.bandit_count
 start_bottom_panel = screen_height - bottom_panel
 
 #define input logic values
 attack = False
-potion = False
+heal_potion = False
 clicked = False
 
 #define game logic value
@@ -52,7 +47,7 @@ img_panel = pygame.image.load("assets/img/Icons/panel.png").convert_alpha()
 #sword icon
 img_sword = pygame.image.load("assets/img/Icons/sword.png").convert_alpha()
 #potion icon
-img_potion = pygame.image.load("assets/img/Icons/potion.png").convert_alpha()
+img_heal_potion = pygame.image.load("assets/img/Icons/potion.png").convert_alpha()
 img_poison = pygame.image.load("assets/img/Icons/poison.png").convert_alpha()
 #restart icon
 img_restart = pygame.image.load("assets/img/Icons/restart.png").convert_alpha()
@@ -87,7 +82,7 @@ def draw_panel_bandit(bandit):
             #show name and health
             draw_text(f"{i.display_name} HP: {i.hp}", font, red,
                 550, start_bottom_panel + 10)
-            draw_text(f"{i.potions} Potion", font, red,
+            draw_text(f"{i.heal_potions} Potion", font, red,
                 550, start_bottom_panel + 55)
     for element in bandits_healthbars:
         if element.owner==bandit:
@@ -106,21 +101,21 @@ knight_health_bar = HealthBar(100, start_bottom_panel + 40, knight)
 bandits_healthbars.append(knight_health_bar)
 character_list.append(knight)
 
-for i in range(bandit_count):
+for i in range(gamerule.bandit_count):
     bandit_list.append(Fighter(350 + i*(80+ennemy_spread) + (character_shift),
-                                270, "Bandit", "Bandit "+str(i+1), 20, 6, 1))
+                                270, "Bandit", "Bandit "+str(i+1), 200, 6, 1))
     character_list.append(bandit_list[i])
     bandits_healthbars.append(HealthBar(550, start_bottom_panel + 40, bandit_list[i]))
 
 #create potion button
-potion_button = Button(screen, 100, start_bottom_panel+70, img_potion, 64, 64)
+heal_potion_button = Button(screen, 100, start_bottom_panel+70, img_heal_potion, 64, 64)
 poison_button = Button(screen, 164, start_bottom_panel+70, img_poison, 64, 64)
 #create restart button
 restart_button = Button(screen, 330, 120, img_restart, 120, 30)
 
 #prepare some temporary value for each loop
 attack = False
-potion = False
+heal_potion = False
 poison = False
 target = None
 
@@ -135,11 +130,7 @@ while run:
 
     #draw_panel()
     draw_panel_knight()
-    draw_panel_bandit(target)
-    
-
-    
-
+    draw_panel_bandit(target)  ##affiche les stats de l'ennemis analysé
 
     for character in character_list:
         character.update()
@@ -152,7 +143,7 @@ while run:
     #control player action
     #reset action variable
     attack = False
-    potion = False
+    heal_potion = False
     poison = False
     target = None
     pos = pygame.mouse.get_pos()
@@ -171,21 +162,21 @@ while run:
             
             
 
-    if potion_button.draw():
-        potion = True
+    if heal_potion_button.draw():
+        heal_potion = True
     if poison_button.draw():
         poison = True
-    #show the amount of potions left
-    draw_text(str(knight.potions), font, red, 150, start_bottom_panel + 70)
+    #show the amount of heal_potions left
+    draw_text(str(knight.heal_potions), font, red, 150, start_bottom_panel + 70)
     #show the amount of poison potions left
     draw_text(str(knight.poison_potions), font, red, 214, start_bottom_panel + 70)
 
     if game_over==0:
         #player action
         if knight.alive :
-            if current_fighter == 1:
-                action_cooldown += 1
-                if action_cooldown >= action_wait_time:
+            if gamerule.current_fighter == 1:
+                knight.action_cooldown += 1
+                if knight.action_cooldown >= gamerule.action_wait_time:
                     #look for player action
                     #attack
                     if attack and target!=None:
@@ -193,15 +184,15 @@ while run:
                             knight.poison_attack(target, damage_text_group)  #poison attack
                         else:
                             knight.attack(target, damage_text_group)         #normal attack
-                        current_fighter+=1
-                        action_cooldown = 0
-                    elif potion:
-                        if knight.potions > 0 and knight.max_hp!=knight.hp:
+                        gamerule.current_fighter+=1
+                        knight.action_cooldown = 0
+                    elif heal_potion:
+                        if knight.heal_potions > 0 and knight.max_hp!=knight.hp:
                             
-                            knight.heal(potion_effect, damage_text_group)
+                            knight.heal(gamerule.heal_potion_effect, damage_text_group)
 
-                            current_fighter+=1
-                            action_cooldown = 0
+                            gamerule.current_fighter+=1
+                            knight.action_cooldown = 0
                     elif poison:
                         if not knight.poison_active:
                             knight.poison_potions -= 1
@@ -212,30 +203,31 @@ while run:
 
         #bandit action
         for count, bandit in enumerate(bandit_list):
-            if current_fighter == 2 + count:
-                if bandit.alive:    
-                    action_cooldown += 1
-                    if action_cooldown >= action_wait_time:
+            if gamerule.current_fighter == 2 + count:
+                if bandit.alive :    
+                    bandit.action_cooldown += 1
+                    if bandit.action_cooldown >= gamerule.action_wait_time :
+                        
                         bandit.status_effect_start_turn(damage_text_group)
-                        if bandit.alive:  #we must check if the target is still alive after the damage of the effects
+                        if bandit.alive:  # must check if the target is still alive after the damage of the effects
                             #check if needs to heal
-                            if (bandit.hp/bandit.max_hp) < 0.5 and bandit.potions > 0 :
-                                #check if potion would overheal
-                                bandit.heal(potion_effect, damage_text_group)
-                                current_fighter+=1
-                                action_cooldown = 0
+                            if (bandit.hp/bandit.max_hp) < 0.5 and bandit.heal_potions > 0 :
+                                #check if heal_potion would overheal
+                                bandit.heal(gamerule.heal_potion_effect, damage_text_group)
+                                gamerule.current_fighter+=1
+                                bandit.action_cooldown = 0
                             else:
                                 #attack
                                 bandit.attack(knight, damage_text_group)
-                                current_fighter+=1                                
-                                action_cooldown = 0
+                                gamerule.current_fighter+=1                                
+                                bandit.action_cooldown = 0
                 else:
-                    current_fighter += 1
+                    gamerule.current_fighter += 1
 
 
         #reset the turn after all played
-        if current_fighter > total_fighter:
-            current_fighter=1
+        if gamerule.current_fighter > gamerule.total_fighter:
+            gamerule.current_fighter=1
     
     
     
@@ -256,8 +248,8 @@ while run:
             knight.reset()
             for bandit in bandit_list:
                 bandit.reset()
-            current_fighter=1
-            action_cooldown=0
+            gamerule.current_fighter=1
+            gamerule.action_cooldown=0
             game_over=0
 
     for event in pygame.event.get():
