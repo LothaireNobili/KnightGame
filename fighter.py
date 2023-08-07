@@ -22,7 +22,6 @@ class Fighter():
 
         #status effect stuff
         self.status_effect = []  #exemple : [["poison",3],["bleeding",2]]  => poisonned for 3 turns, bleeding for 2 turns
-        
         self.turn_state = [0, 0]
 
         #animation values
@@ -81,8 +80,6 @@ class Fighter():
                 damage = damage//2
 
             target.take_damage(damage, damage_text_group)
-            #damage_text = DamageText(target.rect.centerx, target.rect.y, str(damage), red)
-            #damage_text_group.add(damage_text)
 
             #set animation to attack
             self.action = 1
